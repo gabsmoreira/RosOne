@@ -20,14 +20,16 @@ resultado = None
 
 def check_tennis_ball(img):
     global resultado
-    lower_green = np.array([20,70,100])
-    upper_green = np.array([55,255,255])
+    lower_green = np.array([30,120,120])
+    upper_green = np.array([100,255,255])
     blur =cv2.GaussianBlur(img,(5,5),10)
     gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
     hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, lower_green, upper_green)
     mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-    circles = cv2.HoughCircles(gray, cv.CV_HOUGH_GRADIENT, 1.5, 100)
+    edges = cv2.Canny(mask,100,200)
+    circles = cv2.HoughCircles(edges, cv.CV_HOUGH_GRADIENT, 1.5, 100)
+
 
 
     if circles is not None:
@@ -114,17 +116,16 @@ def recebe(imagem):
 
 def position(x,r):
     check_tennis_ball(cv_image)
+    print(x,r)
     if  340 > x > 300:
-        if r < 110:
+        if r < 150:
             forward()
-        if r >= 110:
+        if r >= 150:
             return 1
     elif x < 300:
         turn_left()
     elif x > 340:
         turn_right()
-    else:
-        stop()
 
 
 def main():
@@ -144,7 +145,7 @@ def main():
                 stop()
                 break
             else:
-                turn_right()
+                #turn_right()
                 check_tennis_ball(cv_image)
 
 

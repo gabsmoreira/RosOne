@@ -8,8 +8,8 @@ range_R = np.arange(40,205)
 range_G = np.arange(70,255)
 range_B = np.arange(0,60)
 
-lower_green = np.array([20,70,100])
-upper_green = np.array([55,255,255])
+lower_green = np.array([30,120,120])
+upper_green = np.array([100,255,255])
 while True:
 	ret, img = cap.read()
 	blur =cv2.GaussianBlur(img,(5,5),10)
@@ -19,7 +19,7 @@ while True:
 	mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
 	edges = cv2.Canny(mask,100,200)
 
-	circles = cv2.HoughCircles(edges, cv.CV_HOUGH_GRADIENT, 2, 1000, param1 = 100,param2=40)
+	circles = cv2.HoughCircles(edges, cv.CV_HOUGH_GRADIENT, 1.6, 1000, param1 = 100,param2=40)
 
 
 	if circles is not None:
