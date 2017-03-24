@@ -10,6 +10,9 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from neato_node.msg import Bump
+from sensor_msgs.msg import LaserScan
+
+
 
 import sys, select, termios, tty
 bridge = CvBridge()
@@ -18,10 +21,10 @@ media = []
 centro = []
 atraso = 1.5
 resultado = None
-meio = np.arange(300,340,1)
+meio = np.arange(305,335,1)
 
 def check_tennis_ball(img):
-	global resultado
+	global resultadok
 	global mask
 	lower_green = np.array([40,50,50])
 	upper_green = np.array([100,255,255])
@@ -43,7 +46,7 @@ def check_tennis_ball(img):
 						resultado =  [x,r]
 
 
-	cv2.imshow("mask",mask)
+	#cv2.imshow("mask",mask)
 
 
 
@@ -52,7 +55,7 @@ def check_tennis_ball(img):
 def turn_right():
 	global pub
 	print("Direita")
-	speed = rospy.get_param("~speed", 0.5)
+	speed = rospy.get_param("~speed", 0.3)
 	turn = rospy.get_param("~turn", 0.3)
 	twist = Twist()
 	twist.linear.x = 0*speed; twist.linear.y = 0*speed; twist.linear.z = 0*speed;
@@ -63,7 +66,7 @@ def turn_right():
 def turn_left():
 	global pub
 	print("Esquerda")
-	speed = rospy.get_param("~speed", 0.5)
+	speed = rospy.get_param("~speed", 0.3)
 	turn = rospy.get_param("~turn", 0.3)
 	twist = Twist()
 	twist.linear.x = 0*speed; twist.linear.y = 0*speed; twist.linear.z = 0*speed;
@@ -74,7 +77,7 @@ def turn_left():
 def forward():
 	global pub
 	print("Frente")
-	speed = rospy.get_param("~speed", 0.5)
+	speed = rospy.get_param("~speed", 0.3)
 	turn = rospy.get_param("~turn", 0.5)
 	twist = Twist()
 	twist.linear.x = 1*speed; twist.linear.y = 0*speed; twist.linear.z = 0*speed;
@@ -92,6 +95,35 @@ def stop():
 	twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 0*turn
 	pub.publish(twist)
 
+
+
+def back_right():
+	speed = rospy.get_param("~speed", -1)
+	turn = rospy.get_param("~turn", 1)
+	twist = Twist()
+	twist.linear.x = 1*speed; twist.linear.y = 0*speed; twist.linear.z = 0*speed;
+	twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = -2*turn
+	pub.publish(twist)
+	time.sleep(1)
+	stop()
+	time.sleep(1)
+	forward()
+	time.sleep(1)
+
+
+
+def back_left():
+	speed = rospy.get_param("~speed", -1)
+	turn = rospy.get_param("~turn", 1)
+	twist = Twist()
+	twist.linear.x = 1*speed; twist.linear.y = 0*speed; twist.linear.z = 0*speed;
+	twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 2*turn
+	pub.publish(twist)
+	time.sleep(1)
+	stop()
+	time.sleep(1)
+	forward()
+	time.sleep(1)
 
 
 def recebe(imagem):
@@ -132,6 +164,18 @@ def position(x,r):
 		turn_right()
 
 
+def laser_callback(msg):
+	global laser
+	global index
+	matriz = msg.ranges
+	for i in range (len(matriz)):
+		atual = matriz[i]
+		if atual !=0:
+			if atual <=1:
+				laser = True
+				index = i
+			else:
+				laser = False
 
 
 
@@ -139,38 +183,45 @@ def bumper_callback(msg):
 	global speed
 	global pub
 	global bumped
+	global bumped_lado
 	if(msg.leftFront == 1 or msg.leftSide == 1 or msg.rightFront == 1 or msg.rightSide == 1):
 		bumped = True
+		if msg.leftFront == 1 or msg.leftSide == 1:
+			bumped_lado = 1
+		elif msg.rightFront == 1 or msg.rightSide == 1:
+			bumped_lado = 2
 	else:
 		bumped = False
 
 
 def main():
+	global index
 	global pub
+	global pub_laser
 	global resultado
 	global bumped
+	global bumped_lado
+	global laser
 	rospy.init_node('tennis_ball')
 	bmpSub = rospy.Subscriber('/bump', Bump, bumper_callback)
 	pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
+	pub_laser = rospy.Subscriber("/scan", LaserScan, laser_callback)
 	recebedor = rospy.Subscriber("/camera/image_raw", Image, recebe, queue_size=10, buff_size = 2**24)
-	#r = rospy.Rate(10)
 	bumped = False
+	laser = False
 	while not rospy.is_shutdown():
-		print(bumped)
 		if bumped:
 			stop()
 			print("REH")
-			speed = rospy.get_param("~speed", -1)
-			turn = rospy.get_param("~turn", 1)
-			twist = Twist()
-			twist.linear.x = 1*speed; twist.linear.y = 0*speed; twist.linear.z = 0*speed;
-			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = 1*turn
-			pub.publish(twist)
-			time.sleep(1)
-			stop()
-			time.sleep(1)
+			if bumped_lado == 1:
+				back_right()
+			elif bumped_lado == 2:
+				back_left()
+
 		elif not bumped:
+		
 			if resultado != None:
+
 				x = resultado[0]
 				r = resultado[1]
 				posicao = position(x,r)
@@ -178,9 +229,9 @@ def main():
 					print("EH TETRA")
 					stop()
 					break
-				else:
+				#else:
 					#turn_right()
-					check_tennis_ball(cv_image)
+					#check_tennis_ball(cv_image)
 
 				resultado = None
 
@@ -190,13 +241,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
-'''
-ret, img = camera.read()
-		returns = check_tennis_ball(img)
-		if returns == None:
-			while True:
-				check_tennis_ball(cap)
-				turn_right()
-				if returns != None:
-					break'''
